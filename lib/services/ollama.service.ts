@@ -19,7 +19,15 @@ class AiService {
             : 'https://api.openai.com/v1/chat/completions';
 
         const key = PROVIDER === 'groq' ? GROQ_API_KEY : OPENAI_API_KEY;
-        const cloudModel = PROVIDER === 'groq' ? 'llama-3.3-70b-versatile' : 'gpt-4o-mini';
+        const defaultModel = PROVIDER === 'groq' ? 'llama-3.3-70b-versatile' : 'gpt-4o-mini';
+
+        // Map local model names to cloud defaults
+        let targetModel = model || defaultModel;
+        const isLocalModelName = /^(llama[23]|mistral|phi|nomic|stable|gemma|qwen)/i.test(targetModel);
+
+        if (isLocalModelName && !targetModel.includes('-')) {
+            targetModel = defaultModel;
+        }
 
         if (!key) {
             throw new Error(`Cloud provider ${PROVIDER} selected but no API key provided.`);
@@ -32,7 +40,7 @@ class AiService {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                model: model || cloudModel,
+                model: targetModel,
                 messages,
                 stream: false,
             }),
@@ -40,7 +48,7 @@ class AiService {
 
         if (!res.ok) {
             const err = await res.json();
-            throw new Error(`Cloud AI Error: ${err.error?.message || res.statusText}`);
+            throw new Error(`Cloud AI Error (${PROVIDER}): ${err.error?.message || res.statusText}`);
         }
 
         const data = await res.json();
@@ -77,8 +85,13 @@ class AiService {
         if (useCloud) {
             try {
                 return await this.callCloudApi(messages, model);
-            } catch (e) {
-                console.error('Cloud chat failed, falling back to Ollama:', e);
+            } catch (e: any) {
+                console.error('Cloud chat failed:', e.message);
+                // In production, don't fallback to localhost as it will definitely fail
+                if (CONFIG.CLOUD.IS_PROD) {
+                    throw new Error(`AI Tool Error (Cloud): ${e.message}`);
+                }
+                console.log('Falling back to local Ollama...');
             }
         }
 
@@ -98,8 +111,12 @@ class AiService {
         if (useCloud) {
             try {
                 return await this.callCloudApi(messages, model);
-            } catch (e) {
-                console.error('Cloud generation failed, falling back to Ollama:', e);
+            } catch (e: any) {
+                console.error('Cloud generation failed:', e.message);
+                if (CONFIG.CLOUD.IS_PROD) {
+                    throw new Error(`AI Tool Error (Cloud): ${e.message}`);
+                }
+                console.log('Falling back to local Ollama...');
             }
         }
 

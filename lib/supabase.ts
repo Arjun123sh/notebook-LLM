@@ -8,8 +8,11 @@ export const getSupabase = () => {
 
   const { URL, ANON_KEY } = CONFIG.SUPABASE;
 
-  if (!URL || !ANON_KEY || URL.includes('placeholder')) {
-    console.warn("Supabase environment variables are missing or default.");
+  if (!URL || URL.includes('placeholder')) {
+    console.error("CRITICAL: NEXT_PUBLIC_SUPABASE_URL is missing or invalid in this environment.");
+  }
+  if (!ANON_KEY || ANON_KEY.includes('placeholder')) {
+    console.error("CRITICAL: NEXT_PUBLIC_SUPABASE_ANON_KEY is missing or invalid in this environment.");
   }
 
   supabaseInstance = createClient(URL, ANON_KEY);
