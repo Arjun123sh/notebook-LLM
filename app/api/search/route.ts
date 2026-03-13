@@ -44,7 +44,7 @@ export const POST = withApiHandler(async (req: NextRequest) => {
                 .select('id, content, source_id, notebook_id')
                 .eq('notebook_id', notebookId)
                 .limit(topK);
-            chunks = recentChunks;
+            chunks = recentChunks || [];
         }
     }
 
