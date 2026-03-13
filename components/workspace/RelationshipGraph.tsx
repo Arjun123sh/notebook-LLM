@@ -12,7 +12,7 @@ interface Props {
 export default function RelationshipGraph({ sources, onClose }: Props) {
     // Generate mock nodes and links for visualization
     const data = useMemo(() => {
-        const nodes = sources.map((s, i) => ({
+        const nodes: any[] = sources.map((s, i) => ({
             id: s.id,
             name: s.name,
             type: 'source',
@@ -34,7 +34,7 @@ export default function RelationshipGraph({ sources, onClose }: Props) {
             y: 150 + Math.random() * 200
         }));
 
-        const links = [];
+        const links: any[] = [];
         nodes.forEach(n => {
             // Link each source to 1-2 random concepts
             const numLinks = 1 + Math.floor(Math.random() * 2);
