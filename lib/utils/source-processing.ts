@@ -27,10 +27,10 @@ export async function extractTextFromPDF(arrayBuffer: ArrayBuffer): Promise<stri
     }
 
     const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    const workerPath = path.join(
-        process.cwd(), "node_modules", "pdfjs-dist", "legacy", "build", "pdf.worker.mjs"
-    );
-    pdfjsLib.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
+
+    // Use a CDN-hosted worker for production/Vercel compatibility
+    // and disable the need for a separate worker file in Node environment
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/legacy/build/pdf.worker.mjs`;
 
     const pdf = await pdfjsLib.getDocument({
         data: new Uint8Array(arrayBuffer),
