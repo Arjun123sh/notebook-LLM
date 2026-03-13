@@ -390,7 +390,9 @@ export default function ChatPanel({ notebookId, sources, onCitationClick, onSave
             body: JSON.stringify({ query: text }),
           });
           const { results } = await webRes.json();
-          webSupplement = results.map((r: any) => `[Web: ${r.title}] ${r.snippet}`).join('\n\n');
+          if (Array.isArray(results)) {
+            webSupplement = results.map((r: any) => `[Web: ${r.title}] ${r.snippet}`).join('\n\n');
+          }
         } catch (e) {
           console.error('Web search failed', e);
         } finally {

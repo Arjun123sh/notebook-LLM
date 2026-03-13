@@ -11,7 +11,16 @@ export const POST = withApiHandler(async (req: NextRequest) => {
     }
 
     // 1. Embed the query via Ollama
-    const queryEmbedding = await ollamaService.generateEmbedding(query);
+    let queryEmbedding: number[] = [];
+    try {
+        queryEmbedding = await ollamaService.generateEmbedding(query);
+    } catch (e: any) {
+        console.error("Embedding generation failed:", e.message);
+        return NextResponse.json({
+            matches: [],
+            error: "Source search is currently unavailable (Ollama is not reachable). Context will be limited."
+        });
+    }
 
     // 2. Search via Supabase match_source_chunks RPC via storageService
     const chunks = await storageService.matchChunks(queryEmbedding, notebookId, topK);
