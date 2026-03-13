@@ -1,0 +1,5 @@
+{
+  "name": "Research Hub",
+  "description": "A source-centric research workspace powered by Google Gemini and RAG for grounded intelligence.",
+  "requestFramePermissions": []
+}
