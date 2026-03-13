@@ -398,23 +398,39 @@ export default function ChatPanel({ notebookId, sources, onCitationClick, onSave
         }
       }
 
-      const searchRes = await fetch('/api/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: text, notebookId }),
-      });
-      const searchData = await searchRes.json();
+      let matches = [];
+      let searchError = '';
 
-      const localContext = searchData.matches
-        ?.map((m: any) => `[Source: ${sources.find(s => s.id === m.sourceId)?.name || 'Source'}] ${m.content}`)
+      try {
+        const searchRes = await fetch('/api/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: text, notebookId }),
+        });
+        const searchData = await searchRes.json();
+
+        if (searchRes.ok) {
+          matches = searchData.matches || [];
+        } else {
+          searchError = searchData.error;
+          console.warn('Search failed:', searchError);
+        }
+      } catch (e) {
+        console.error('Search request failed', e);
+      }
+
+      const localContext = matches
+        .map((m: any) => `[Source: ${sources.find(s => s.id === m.sourceId)?.name || 'Source'}] ${m.content}`)
         .join('\n\n') || '';
 
       context = localContext;
       if (webSupplement) {
-        context = `REAL-TIME WEB DATA:\n${webSupplement}\n\nLOCAL SOURCES:\n${localContext}`;
+        context = `REAL-TIME WEB DATA:\n${webSupplement}\n\nLOCAL SOURCES:\n${localContext || (searchError ? '[Error: Search unavailable]' : '[No results]')}`;
+      } else if (!localContext && searchError) {
+        context = `[NOTE: System was unable to retrieve source context: ${searchError}]`;
       }
 
-      const citations: Citation[] = searchData.matches.map((m: any, i: number) => ({
+      const citations: Citation[] = matches.map((m: any, i: number) => ({
         index: i + 1,
         content: m.content,
         sourceId: m.sourceId,
@@ -427,7 +443,13 @@ export default function ChatPanel({ notebookId, sources, onCitationClick, onSave
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: text, context, model: selectedModel }),
       });
-      const { content } = await chatRes.json();
+      const chatData = await chatRes.json();
+
+      if (!chatRes.ok) {
+        throw new Error(chatData.error || 'Chat failed');
+      }
+
+      const { content } = chatData;
 
       const modelMsgId = crypto.randomUUID();
       const modelMsg: Message = {

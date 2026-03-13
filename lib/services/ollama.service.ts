@@ -55,11 +55,13 @@ class AiService {
             });
             return res.embeddings?.[0] ?? (res as any).embedding ?? [];
         } catch (error: any) {
-            if (CONFIG.CLOUD.IS_PROD) {
-                console.warn('Ollama embedding failed in PROD. Ensure OLLAMA_HOST is reachable.');
-            }
+            const isLocal = CONFIG.OLLAMA.HOST.includes('localhost') || CONFIG.OLLAMA.HOST.includes('127.0.0.1');
+            const detail = isLocal
+                ? "Is Ollama running? Local embedding requires the Ollama server to be active."
+                : "Unable to reach remote Ollama server.";
+
             console.error('Embedding error:', error);
-            throw error;
+            throw new Error(`Vector Search Error: ${detail} (${error.message})`);
         }
     }
 
