@@ -55,19 +55,23 @@ export const POST = withApiHandler(async (req: NextRequest) => {
         const embeddingPromises = batch.map(async (chunk, index) => {
             try {
                 const chunkIndex = i + index;
-                const embedding = await ollamaService.generateEmbedding(chunk);
+                let embedding: number[] = [];
 
-                if (embedding.length === 0) return null;
+                try {
+                    embedding = await ollamaService.generateEmbedding(chunk);
+                } catch (embedErr) {
+                    console.warn(`Embedding failed for chunk ${chunkIndex} in prod. Storing without vector.`);
+                }
 
                 return {
                     source_id: sourceId,
                     notebook_id: notebookId,
                     content: chunk,
-                    metadata: { sourceName: sourceName || file.name, chunkIndex },
-                    embedding,
+                    metadata: { sourceName: sourceName || file?.name || 'Uploaded Source', chunkIndex },
+                    embedding: embedding.length > 0 ? embedding : null,
                 };
             } catch (err) {
-                console.error(`Error embedding chunk ${i + index}:`, err);
+                console.error(`Error processing chunk ${i + index}:`, err);
                 return null;
             }
         });
