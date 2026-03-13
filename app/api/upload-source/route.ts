@@ -13,19 +13,23 @@ export const POST = withApiHandler(async (req: NextRequest) => {
     const notebookId = formData.get("notebookId") as string;
     const sourceId = formData.get("sourceId") as string;
     const sourceName = formData.get("sourceName") as string;
+    const extractedText = formData.get("extractedText") as string;
 
-    if (!file || !notebookId || !sourceId) {
-        throw new Error("file, notebookId and sourceId are required");
+    if (!file && !extractedText) {
+        throw new Error("Either file or extractedText is required");
     }
 
-    // 1. EXTRACT TEXT
-    console.log(`Processing source: ${sourceName || file.name}`);
-    let text = "";
-    if (file.type === "application/pdf") {
-        const buffer = await file.arrayBuffer();
-        text = await extractTextFromPDF(buffer);
-    } else {
-        text = await file.text();
+    // 1. OBTAIN TEXT (Client-side extraction preferred)
+    console.log(`Processing source: ${sourceName || file?.name || 'Text Source'}`);
+    let text = extractedText || "";
+
+    if (!text && file) {
+        if (file.type === "application/pdf") {
+            const buffer = await file.arrayBuffer();
+            text = await extractTextFromPDF(buffer);
+        } else {
+            text = await file.text();
+        }
     }
 
     if (!text.trim()) {

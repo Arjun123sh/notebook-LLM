@@ -30,23 +30,55 @@ export default function SourcePanel({ notebookId, sources, onSourceAdded, onSour
     setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   }
 
+  async function extractTextFromPDFClient(file: File): Promise<string> {
+    const pdfjs = await import('pdfjs-dist');
+    pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
+    const pdf = await loadingTask.promise;
+    let fullText = '';
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map((item: any) => item.str).join(' ');
+      fullText += pageText + '\n';
+    }
+
+    return fullText;
+  }
+
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    setUploadProgress('Saving source...');
+    setUploadProgress('Extracting text locally...');
     try {
+      let extractedText = '';
+      if (file.type === 'application/pdf') {
+        extractedText = await extractTextFromPDFClient(file);
+      } else {
+        extractedText = await file.text();
+      }
+
+      if (!extractedText.trim()) throw new Error('Could not extract text from file');
+
+      setUploadProgress('Saving source...');
       const { data: sourceData, error } = await supabase.from('sources')
-        .insert([{ notebook_id: notebookId, name: file.name, type: file.type === 'application/pdf' ? 'pdf' : 'text', content: '' }])
+        .insert([{ notebook_id: notebookId, name: file.name, type: file.type === 'application/pdf' ? 'pdf' : 'text', content: extractedText.substring(0, 5000) }])
         .select();
       if (error || !sourceData) throw new Error(error?.message);
       const source = sourceData[0];
-      setUploadProgress('Extracting & embedding...');
+
+      setUploadProgress('Generating embeddings...');
       const formData = new FormData();
       formData.append('file', file);
       formData.append('notebookId', notebookId);
       formData.append('sourceId', source.id);
       formData.append('sourceName', file.name);
+      formData.append('extractedText', extractedText);
+
       const res = await fetch('/api/upload-source', { method: 'POST', body: formData });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
