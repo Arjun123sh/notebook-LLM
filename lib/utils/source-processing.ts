@@ -27,12 +27,13 @@ export async function extractTextFromPDF(arrayBuffer: ArrayBuffer): Promise<stri
     }
 
     const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const pdfjsWorker = await import("pdfjs-dist/legacy/build/pdf.worker.mjs");
 
-    // Use a CDN-hosted worker for production/Vercel compatibility
-    // and disable the need for a separate worker file in Node environment
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/legacy/build/pdf.worker.mjs`;
+    // In Node.js/Vercel (ESM), importing the worker module and assigning it 
+    // to workerPort is the safest way to avoid protocol errors and worker path issues.
+    (pdfjsLib.GlobalWorkerOptions as any).workerPort = pdfjsWorker;
 
-    const pdf = await pdfjsLib.getDocument({
+    const pdf = await (pdfjsLib as any).getDocument({
         data: new Uint8Array(arrayBuffer),
         useWorkerFetch: false,
         isEvalSupported: false,
