@@ -13,18 +13,16 @@ export const POST = withApiHandler(async (req: NextRequest) => {
 
     // 1. Embed the query via Ollama
     let queryEmbedding: number[] = [];
+    let chunks: any[] = [];
+    let searchError = "";
+
     try {
         queryEmbedding = await ollamaService.generateEmbedding(query);
+        chunks = await storageService.matchChunks(queryEmbedding, notebookId, topK);
     } catch (e: any) {
-        console.error("Embedding generation failed:", e.message);
-        return NextResponse.json({
-            matches: [],
-            error: "Source search is currently unavailable (Ollama is not reachable). Context will be limited."
-        });
+        console.error("Embedding generation failed, falling back to keywords:", e.message);
+        searchError = "Source search is limited (Local AI unreachable).";
     }
-
-    // 2. Search via Supabase match_source_chunks RPC
-    let chunks = await storageService.matchChunks(queryEmbedding, notebookId, topK);
 
     // 3. Fallback: If no vector matches found (or embedding failed), try a simple keyword search
     // This is critical for "Zero-Cost" production deployments where embeddings might be unavailable.
@@ -58,5 +56,5 @@ export const POST = withApiHandler(async (req: NextRequest) => {
         metadata: c.metadata,
     }));
 
-    return NextResponse.json({ matches });
+    return NextResponse.json({ matches, error: searchError });
 });
